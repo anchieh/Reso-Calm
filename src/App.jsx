@@ -1,11 +1,52 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, Volume2, VolumeX, Bell } from 'lucide-react';
 
+// 🎵 聲音預設配置
+const SOUND_PRESETS = {
+  A: {
+    name: 'Deep Calm',
+    // desc: '深度安撫',
+    // subtitle: '大崩潰、恐慌時使用',
+    freq: 200,
+    harmonicFreq: 400,
+    harmonicType: 'sine',
+    harmonicGain: 0.05,
+    filterFreq: 1200,
+    length: 0.12,
+    // emoji: '🥇'
+  },
+  B: {
+    name: 'Soft Focus',
+    // desc: '柔和但清楚',
+    // subtitle: '生氣、激動時使用',
+    freq: 350,
+    harmonicFreq: 700,
+    harmonicType: 'triangle',
+    harmonicGain: 0.07,
+    filterFreq: 1800,
+    length: 0.12,
+    // emoji: '🥈'
+  },
+  C: {
+    name: 'Bright Gentle',
+    // desc: '輕亮而溫柔',
+    // subtitle: '疲累、煩躁時使用',
+    freq: 500,
+    harmonicFreq: 1000,
+    harmonicType: 'sine',
+    harmonicGain: 0.08,
+    filterFreq: 2500,
+    length: 0.12,
+    // emoji: '🥉'
+  }
+};
+
 const App = () => {
   // --- 狀態管理 ---
   const [active, setActive] = useState(false);
   const [cycleDuration, setCycleDuration] = useState(8); // 預設 8 秒
   const [muted, setMuted] = useState(false);
+  const [soundPreset, setSoundPreset] = useState('B'); // 預設使用 Soft Focus
   
   // 視覺狀態
   const [scale, setScale] = useState(1); 
@@ -33,11 +74,14 @@ const App = () => {
     }
   }, []);
 
-  // 🔔 核心：Soft Bell 產生器
+  // 🔔 核心：Soft Bell 產生器（使用預設配置）
   const playSoftBell = useCallback(() => {
     if (muted || !audioCtxRef.current) return;
     const ctx = audioCtxRef.current;
     const t = ctx.currentTime;
+
+    // 取得當前預設參數
+    const preset = SOUND_PRESETS[soundPreset];
 
     const fundamental = ctx.createOscillator();
     const harmonic = ctx.createOscillator();
@@ -46,15 +90,16 @@ const App = () => {
     const harmonicGain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
 
-    const FREQ = 1000; 
+    // 使用預設頻率
     fundamental.type = 'sine';
-    fundamental.frequency.value = FREQ;
+    fundamental.frequency.value = preset.freq;
 
-    harmonic.type = 'triangle';
-    harmonic.frequency.value = FREQ * 2;
+    harmonic.type = preset.harmonicType;
+    harmonic.frequency.value = preset.harmonicFreq;
 
+    // 使用預設濾波器
     filter.type = 'lowpass';
-    filter.frequency.value = 7000;
+    filter.frequency.value = preset.filterFreq;
     filter.Q.value = 0.5;
 
     fundamental.connect(mainGain);
@@ -63,7 +108,8 @@ const App = () => {
     mainGain.connect(filter);
     filter.connect(masterGainRef.current);
 
-    harmonicGain.gain.value = 0.15; 
+    // 使用預設諧波增益
+    harmonicGain.gain.value = preset.harmonicGain; 
 
     mainGain.gain.setValueAtTime(0, t);
     mainGain.gain.linearRampToValueAtTime(0.8, t + 0.003);
@@ -72,10 +118,11 @@ const App = () => {
     fundamental.start(t);
     harmonic.start(t);
     
-    fundamental.stop(t + 0.12);
-    harmonic.stop(t + 0.12);
+    // 使用預設長度
+    fundamental.stop(t + preset.length);
+    harmonic.stop(t + preset.length);
 
-  }, [muted]);
+  }, [muted, soundPreset]);
 
   // --- 2. 動畫邏輯（重寫版本）---
   useEffect(() => {
@@ -180,9 +227,9 @@ const App = () => {
       </header>
 
       {/* Main Visual */}
-      <main className="flex-1 flex flex-col items-center justify-center w-full">
+      <main className="flex-1 flex flex-col items-center justify-center w-full py-4">
         
-        <div className="relative flex items-center justify-center w-80 h-80">
+        <div className="relative flex items-center justify-center w-72 h-72">
           {/* 參考線 */}
           <div className="absolute w-64 h-64 rounded-full border border-slate-700/40"></div>
           
@@ -201,7 +248,7 @@ const App = () => {
         </div>
 
         <div className="mt-12 text-center opacity-40 text-xs space-y-1 font-mono">
-          <p>Soft Bell Cue • 1000Hz</p>
+          <p>{SOUND_PRESETS[soundPreset].name} • {SOUND_PRESETS[soundPreset].freq}Hz</p>
           <p>{cycleDuration}s Cycle</p>
           <p className="text-emerald-500">Scale: {scale.toFixed(2)}</p>
         </div>
@@ -240,6 +287,32 @@ const App = () => {
         >
           {active ? <Pause size={32} /> : <Play size={32} className="ml-1" />}
         </button>
+
+        {/* Sound Preset Selector */}
+        <div className="w-full max-w-md">
+          <div className="flex gap-2 justify-center">
+            {Object.entries(SOUND_PRESETS).map(([key, preset]) => (
+              <button
+                key={key}
+                onClick={() => setSoundPreset(key)}
+                className={`flex-1 py-3 px-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] active:scale-95 ${
+                  soundPreset === key
+                    ? 'bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-900/20'
+                    : 'bg-slate-800/30 border-slate-700/30 hover:border-slate-600/50'
+                }`}
+              >
+                <div className={`text-sm font-semibold ${
+                  soundPreset === key ? 'text-emerald-300' : 'text-slate-300'
+                }`}>
+                  {preset.name}
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  {preset.freq}Hz
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       </footer>
     </div>
   );
