@@ -1,4 +1,4 @@
-# Resoo Calm
+# Reso Calm
 
 A React application built with Vite and Tailwind CSS.
 
